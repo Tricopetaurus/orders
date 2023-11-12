@@ -49,3 +49,9 @@ The frustrating thing with bokeh is the callbacks are in javascript
 Need to sort out the proper assignment first, but then support
 loading in via a provided file instead of requiring someone
 to type up py code for everything
+
+### Handle overshot
+
+Right now I snap to an existing stop by zero'ing out all future
+movement in a step. Instead, we should finish moving towards 
+the next waypoint with the remainder of that step.
