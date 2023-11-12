@@ -1,4 +1,13 @@
 from __future__ import annotations
+import numpy as np
+
+from bokeh.layouts import column, row
+from bokeh.models import ColumnDataSource, CustomJS, Slider
+from bokeh.plotting import figure, show
+
+import matplotlib.pyplot as plt
+from matplotlib.widgets import Slider
+
 import math
 from typing import Optional
 
@@ -104,11 +113,7 @@ class Courier:
         return f'x: {self.loc.x:3.02f} y: {self.loc.y:3.02f}'
 
 
-
-
-
-
-def main():
+def console_main():
     origin = Point(0,0)
     p1 = Point(3,4)
     p2 = Point(2,6)
@@ -129,6 +134,106 @@ def main():
     for c2 in all_c2[len(all_c1):]:
         print(f'{" "*19}{"*" if c2==p3 or c2==p4 else " "}c2: {c2}')
 
-if __name__ == '__main__':
-    main()
 
+def plot_matplotlib():
+    STEP_SIZE = 0.2
+    origin = Point(0, 0)
+    c1 = Courier(origin, STEP_SIZE)
+    c2 = Courier(origin, STEP_SIZE)
+    c1.add_waypoint(Point(3,4))
+    c1.add_waypoint(Point(2,6))
+    c2.add_waypoint(Point(9,2))
+    c2.add_waypoint(Point(1,1))
+    all_couriers = [c1, c2]
+    MAX_T = max(all_couriers, key = lambda c: c.distance_to_complete()).steps_to_complete()
+    all_courier_pts = [c.get_all_points() for c in all_couriers]
+
+    fig, ax = plt.subplots()
+    ax.axis([0,15, 0,15])
+    ax.set_aspect(1) # x y
+    plt.grid(True)
+
+    # Plop down the first point (Restaurants) in blue
+    ax.plot(3, 4, c='blue', marker='o')
+    ax.plot(9, 2, c='blue', marker='o')
+
+    # Plop down the destination in green
+    ax.plot(2, 6, c='green', marker='o')
+    ax.plot(1, 1, c='green', marker='o')
+
+    # Make room at the bottom for sliders
+    fig.subplots_adjust(bottom=0.3)
+    courier_dots = []
+    for c in all_courier_pts:
+        dot, = ax.plot(c[0].x, c[0].y, c='red', marker='o', ms=10) # plot the red point 
+        courier_dots.append(dot)
+
+    def update_plot(t: int):
+        ''' 
+        This function updates the radius of the circles
+        and the position of the dashed lines
+        '''
+
+        for idx, dot in enumerate(courier_dots):
+            _t = int(min(t, len(all_courier_pts[idx])-1))
+            new_x = all_courier_pts[idx][_t].x
+            new_y = all_courier_pts[idx][_t].y
+            dot.set_xdata(new_x)
+            dot.set_ydata(new_y)
+
+    def update_t(t):
+        update_plot(t)
+        fig.canvas.draw_idle()
+
+    # Create Axes for the sliders
+    axcolor = '#909090'
+    sax_y = plt.axes([0.25, 0.15, 0.65, 0.03], facecolor=axcolor)
+
+    # Create sliders
+    print(MAX_T)
+    st = Slider(sax_y, 'Time', valmin=0, valmax=MAX_T)
+
+    # Tell sliders which function to call when changed
+    st.on_changed(update_t)
+
+    plt.show()
+
+
+
+
+""""
+def plot_bokeh():
+    STEP_SIZE = 0.2
+    origin = Point(0, 0)
+    c1 = Courier(origin, STEP_SIZE)
+    c2 = Courier(origin, STEP_SIZE)
+    c1.add_waypoint(Point(3,4))
+    c1.add_waypoint(Point(2,6))
+    c2.add_waypoint(Point(9,2))
+    c2.add_waypoint(Point(1,1))
+
+    # TODO: Replace the above with CSV Loading
+    # From this point on everything should be in loaded array
+    all_couriers = [c1, c2]
+    all_courier_pts = [c.get_all_points() for c in all_couriers]
+    # We need a time scale to slide our values along
+    # We'll need to pick the longest time between all 
+    # of our couriers
+    MAX_T = max(all_couriers, key = lambda c: c.distance_to_complete()).distance_to_complete()
+    t = np.linspace(0, MAX_T, dtype=np.float64)
+
+    plot = figure(x_range=(0, 10), y_range=(0, 10), width=400, height=400)
+    time = Slider(start=0, end=MAX_T, value=0, step=STEP_SIZE, title="Time")
+    for c in all_courier_pts:
+        x = [p.x for p in c]
+        y = [p.y for p in c]
+        plot.scatter(x, y)
+    show(plot)
+    # time.js_on_change('value', callback)
+"""
+
+
+if __name__ == '__main__':
+    plot_matplotlib()
+    # plot_bokeh()
+    # console_main()
