@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
+from matplotlib.animation import FuncAnimation
 
 import math
 from typing import Optional
+
+# Self-animate if False
+USE_SLIDER = False
 
 
 class Point:
@@ -55,6 +59,9 @@ class Courier:
 
     def add_waypoint(self, p: Point):
         self._waypoints.append(p)
+
+    def add_many_waypoints(self, list_of_p: list[Point]):
+        self._waypoints.extend(list_of_p)
 
     def distance_to_complete(self) -> float:
         total_distance = 0.0
@@ -107,33 +114,41 @@ class Courier:
 
 
 def plot_matplotlib():
-    STEP_SIZE = 0.2
-    origin = Point(0, 0)
-    c1 = Courier(origin, STEP_SIZE)
-    c2 = Courier(origin, STEP_SIZE)
-    c1.add_waypoint(Point(3, 4))
-    c1.add_waypoint(Point(2, 6))
-    c2.add_waypoint(Point(9, 2))
-    c2.add_waypoint(Point(1, 1))
-    all_couriers = [c1, c2]
-    MAX_T = max(
-        all_couriers, key=lambda c: c.distance_to_complete()
-    ).steps_to_complete()
-    all_courier_pts = [c.get_all_points() for c in all_couriers]
+    couriers = {
+        "c1": [
+            (0, 0),
+            (8, 10),
+            (2, 3),
+        ],
+        "c2": [(0, 1), (3, 6), (5, 5)],
+        "c3": [(7, 7), (8, 10), (1, 2)],
+    }
+    STEP_SIZE = 0.08
+
+    # Grab the first point from each of our dictionary entries
+    # To use as the courier's origin point / constructor
+    all_couriers = []
+    colors = ["blue", "green"]
 
     fig, ax = plt.subplots()
+
     ax.axis([0, 15, 0, 15])
     ax.set_aspect(1)  # x y
     plt.grid(True)
 
-    # Plop down the first point (Restaurants) in blue
-    ax.plot(3, 4, c="blue", marker="o")
-    ax.plot(9, 2, c="blue", marker="o")
+    for key in couriers:
+        color_marker = 0
+        new_courier = Courier(Point(*couriers[key][0]), step_size=STEP_SIZE)
+        for xy in couriers[key][1:]:
+            new_courier.add_waypoint(Point(*xy))
+            ax.plot(*xy, c=colors[color_marker], marker="x")
+            color_marker = min(color_marker + 1, len(colors) - 1)
+        all_couriers.append(new_courier)
 
-    # Plop down the destination in green
-    ax.plot(2, 6, c="green", marker="o")
-    ax.plot(2, 6, c="green", marker="o")
-    ax.plot(1, 1, c="green", marker="o")
+    MAX_T = max(
+        all_couriers, key=lambda c: c.distance_to_complete()
+    ).steps_to_complete()
+    all_courier_pts = [c.get_all_points() for c in all_couriers]
 
     # Make room at the bottom for sliders
     fig.subplots_adjust(bottom=0.3)
@@ -149,24 +164,25 @@ def plot_matplotlib():
             _t = int(min(t, len(all_courier_pts[idx]) - 1))
             new_x = all_courier_pts[idx][_t].x
             new_y = all_courier_pts[idx][_t].y
-            dot.set_xdata(new_x)
-            dot.set_ydata(new_y)
+            dot.set_xdata([new_x])
+            dot.set_ydata([new_y])
 
     def update_t(t):
         update_plot(t)
         fig.canvas.draw_idle()
 
-    # Create Axes for the sliders
-    axcolor = "#909090"
-    sax_y = plt.axes([0.25, 0.15, 0.65, 0.03], facecolor=axcolor)
+    if USE_SLIDER:
+        # Create slider and create Axes for the sliders
+        axcolor = "#909090"
+        sax_y = plt.axes([0.25, 0.15, 0.65, 0.03], facecolor=axcolor)
+        st = Slider(sax_y, "Time", valmin=0, valmax=MAX_T)
 
-    # Create sliders
-    print(MAX_T)
-    st = Slider(sax_y, "Time", valmin=0, valmax=MAX_T)
-
-    # Tell sliders which function to call when changed
-    st.on_changed(update_t)
-    plt.show()
+        # Tell sliders which function to call when changed
+        st.on_changed(update_t)
+        plt.show()
+    else:
+        t = FuncAnimation(fig=fig, func=update_plot, frames=list(range(MAX_T)), interval=1, repeat_delay=1000)
+        plt.show()
 
 
 def console_main():

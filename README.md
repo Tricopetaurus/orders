@@ -7,11 +7,9 @@ way to their destinations.
 Currently all points are hard-coded it, but migrating
 to a csv or json load would be trivial.
 
-## Pictures
+## Demo
 
-![Figure 1](./docs/Figure_1.png)
-
-![Figure 2](./docs/Figure_2.png)
+![Demo](./docs/demo.gif)
 
 ## Install
 
