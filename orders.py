@@ -10,7 +10,6 @@ from typing import Optional
 # Self-animate if False
 USE_SLIDER = False
 
-
 class Point:
     x: float
     y: float
@@ -46,21 +45,26 @@ class Point:
 class Courier:
     _loc: Point
     _step_size: float
-    _waypoints: list[Point]
+    _waypoints: list[tuple[Point, Optional[float]]]
+    _clock_time: float 
+    _speed : float
 
-    def __init__(self, p: Point, step_size: float = 1.0):
+    def __init__(self, p: Point, leave_at_t: Optional[float] = None, step_size: float = 1.0, speed: float = 1.0):
+        self._clock_time = 0
         self._loc = p
         self._waypoints = list()
         self._step_size = step_size
+        self._speed = speed
+        self.add_waypoint(p, leave_at_t)
 
     @property
     def loc(self) -> Point:
         return self._loc
 
-    def add_waypoint(self, p: Point):
-        self._waypoints.append(p)
+    def add_waypoint(self, p: Point, leave_at_t: Optional[float] = None):
+        self._waypoints.append((p, leave_at_t))
 
-    def add_many_waypoints(self, list_of_p: list[Point]):
+    def add_many_waypoints(self, list_of_p: list[tuple[Point, float]]):
         self._waypoints.extend(list_of_p)
 
     def distance_to_complete(self) -> float:
@@ -76,19 +80,30 @@ class Courier:
 
     def next_point(self) -> Optional[Point]:
         if len(self._waypoints):
-            return self._waypoints[0]
+            return self._waypoints[0][0]
+        print("No more points!")
+        return None
+
+    def next_leave_t(self) -> Optional[float]:
+        if len(self._waypoints):
+            return self._waypoints[0][1]
         print("No more points!")
         return None
 
     # Advance point 1 more towards next waypoint
     def advance(self):
+        self._clock_time += self._step_size
         next = self.next_point()
+        next_leave_t = self.next_leave_t()
+        # wait right here until it's time to leave 
+        if next_leave_t and self._clock_time < next_leave_t:
+            return
         if not next:
             return
         x, y = self._loc.xy_distance(next)
         angle_to_target = math.atan2(y, x)
-        next_x = self._loc.x + self._step_size * math.cos(angle_to_target)
-        next_y = self._loc.y + self._step_size * math.sin(angle_to_target)
+        next_x = self._loc.x + self._step_size * self._speed * math.cos(angle_to_target)
+        next_y = self._loc.y + self._step_size * self._speed * math.sin(angle_to_target)
         next_point = Point(next_x, next_y)
         overshoot = self.loc.overshot_by_n(next, next_point)
         if overshoot:
@@ -114,41 +129,61 @@ class Courier:
 
 
 def plot_matplotlib():
-    couriers = {
-        "c1": [
-            (0, 0),
-            (8, 10),
-            (2, 3),
-        ],
-        "c2": [(0, 1), (3, 6), (5, 5)],
-        "c3": [(7, 7), (8, 10), (1, 2)],
-    }
-    STEP_SIZE = 0.08
+    couriers = {}
+
+    fake_csv = [
+        {'courier': 'c1', 'where to':  'c1', 'xy': (11491,  2806), 'time':   4.0},
+        {'courier': 'c1', 'where to': 'r11', 'xy':  (6926,  9539), 'time':  33.4},
+        {'courier': 'c1', 'where to':  'o1', 'xy':  (3960,  8075), 'time':  47.8},
+        {'courier': 'c1', 'where to':  'r7', 'xy':  (8744,  7935), 'time':  66.7},
+        {'courier': 'c1', 'where to':  'o2', 'xy':  (4417,  5612), 'time':  86.1},
+        {'courier': 'c1', 'where to':  'r9', 'xy': (10285,  5733), 'time': 108.4},
+        {'courier': 'c1', 'where to':  'o4', 'xy': (10122,  7881), 'time': None},
+        {'courier': 'c2', 'where to':  'c2', 'xy':  (2818, 10568), 'time':  30.0},
+        {'courier': 'c2', 'where to':  'r6', 'xy':  (7436,  4131), 'time':  58.8},
+        {'courier': 'c2', 'where to':  'o3', 'xy':  (8428,  4745), 'time':  66.4},
+        {'courier': 'c2', 'where to':  'r5', 'xy':  (5593,  7438), 'time':  82.6},
+        {'courier': 'c2', 'where to':  'o5', 'xy': (10149,  8393), 'time': 101.2},
+        {'courier': 'c2', 'where to': 'r12', 'xy':  (9738,  7858), 'time': 107.3},
+        {'courier': 'c2', 'where to': 'o13', 'xy':  (9778,  7773), 'time': 111.6},
+        {'courier': 'c2', 'where to':  'r1', 'xy':  (8991,  6342), 'time': 127.0},
+        {'courier': 'c2', 'where to': 'o18', 'xy':  (9141,  9906), 'time': None },
+
+    ]
+    
+
+    for row in fake_csv:
+        c_name = row['courier']
+        if c_name not in couriers:
+            couriers[c_name] = []
+        # TODO: Get names like where to for labels
+        couriers[c_name].append((row['xy'], row['time']))
+
+    COURIER_SPEED = 320     # Meters per Minute
+    STEP_SIZE = .25
 
     # Grab the first point from each of our dictionary entries
     # To use as the courier's origin point / constructor
     all_couriers = []
-    colors = ["blue", "green"]
+    colors = ["green"]
 
     fig, ax = plt.subplots()
 
-    ax.axis([0, 15, 0, 15])
+    ax.axis([0, 15000, 0, 15000])
     ax.set_aspect(1)  # x y
     plt.grid(True)
 
     for key in couriers:
         color_marker = 0
-        new_courier = Courier(Point(*couriers[key][0]), step_size=STEP_SIZE)
-        for xy in couriers[key][1:]:
-            new_courier.add_waypoint(Point(*xy))
+        new_courier = Courier(Point(*couriers[key][0][0]), couriers[key][0][1], step_size=STEP_SIZE, speed=COURIER_SPEED)
+        for xy, t in couriers[key][1:]:
+            new_courier.add_waypoint(Point(*xy), t)
             ax.plot(*xy, c=colors[color_marker], marker="x")
             color_marker = min(color_marker + 1, len(colors) - 1)
         all_couriers.append(new_courier)
 
-    MAX_T = max(
-        all_couriers, key=lambda c: c.distance_to_complete()
-    ).steps_to_complete()
     all_courier_pts = [c.get_all_points() for c in all_couriers]
+    MAX_T = len(max(all_courier_pts, key=lambda pts: len(pts)))
 
     # Make room at the bottom for sliders
     fig.subplots_adjust(bottom=0.3)
@@ -183,30 +218,6 @@ def plot_matplotlib():
     else:
         t = FuncAnimation(fig=fig, func=update_plot, frames=list(range(MAX_T)), interval=1, repeat_delay=1000)
         plt.show()
-
-
-def console_main():
-    origin = Point(0, 0)
-    p1 = Point(3, 4)
-    p2 = Point(2, 6)
-    c1 = Courier(origin, 0.6)
-    c1.add_waypoint(p1)
-    c1.add_waypoint(p2)
-    p3 = Point(9, 2)
-    p4 = Point(1, 1)
-    c2 = Courier(origin, 0.6)
-    c2.add_waypoint(p3)
-    c2.add_waypoint(p4)
-    # steps = c.steps_to_complete()
-    all_c1 = c1.get_all_points()
-    all_c2 = c2.get_all_points()
-    for c1, c2 in zip(all_c1, all_c2):
-        print(
-            f'{"*" if c1==p1 or c1==p2 else " "}c1: {c1}  {"*" if c2==p3 or c2==p4 else " "}c2: {c2}'
-        )
-
-    for c2 in all_c2[len(all_c1) :]:
-        print(f'{" "*19}{"*" if c2==p3 or c2==p4 else " "}c2: {c2}')
 
 
 if __name__ == "__main__":
