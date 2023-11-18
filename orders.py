@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import csv
+import math
+from typing import Optional
+
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 from matplotlib.animation import FuncAnimation
-
-import math
-from typing import Optional
 
 # Self-animate if False
 USE_SLIDER = False
@@ -127,37 +128,29 @@ class Courier:
     def __str__(self):
         return f"x: {self.loc.x:3.02f} y: {self.loc.y:3.02f}"
 
+def load_csv(path: str) -> list[dict]:
+    with open(path) as f:
+        dict_reader = csv.DictReader(f)
+        return [row for row in dict_reader]
 
-def plot_matplotlib():
+
+def float_or_none(s: str) -> Optional[float]:
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+def plot_matplotlib(clist: list[dict]):
     couriers = {}
 
-    fake_csv = [
-        {'courier': 'c1', 'where to':  'c1', 'xy': (11491,  2806), 'time':   4.0},
-        {'courier': 'c1', 'where to': 'r11', 'xy':  (6926,  9539), 'time':  33.4},
-        {'courier': 'c1', 'where to':  'o1', 'xy':  (3960,  8075), 'time':  47.8},
-        {'courier': 'c1', 'where to':  'r7', 'xy':  (8744,  7935), 'time':  66.7},
-        {'courier': 'c1', 'where to':  'o2', 'xy':  (4417,  5612), 'time':  86.1},
-        {'courier': 'c1', 'where to':  'r9', 'xy': (10285,  5733), 'time': 108.4},
-        {'courier': 'c1', 'where to':  'o4', 'xy': (10122,  7881), 'time': None},
-        {'courier': 'c2', 'where to':  'c2', 'xy':  (2818, 10568), 'time':  30.0},
-        {'courier': 'c2', 'where to':  'r6', 'xy':  (7436,  4131), 'time':  58.8},
-        {'courier': 'c2', 'where to':  'o3', 'xy':  (8428,  4745), 'time':  66.4},
-        {'courier': 'c2', 'where to':  'r5', 'xy':  (5593,  7438), 'time':  82.6},
-        {'courier': 'c2', 'where to':  'o5', 'xy': (10149,  8393), 'time': 101.2},
-        {'courier': 'c2', 'where to': 'r12', 'xy':  (9738,  7858), 'time': 107.3},
-        {'courier': 'c2', 'where to': 'o13', 'xy':  (9778,  7773), 'time': 111.6},
-        {'courier': 'c2', 'where to':  'r1', 'xy':  (8991,  6342), 'time': 127.0},
-        {'courier': 'c2', 'where to': 'o18', 'xy':  (9141,  9906), 'time': None },
-
-    ]
-    
-
-    for row in fake_csv:
+    for row in clist:
         c_name = row['courier']
         if c_name not in couriers:
             couriers[c_name] = []
-        # TODO: Get names like where to for labels
-        couriers[c_name].append((row['xy'], row['time']))
+        try:
+            couriers[c_name].append((float(row['x']), float(row['y']), float_or_none(row['time'])))
+        except ValueError:
+            pass
 
     COURIER_SPEED = 320     # Meters per Minute
     STEP_SIZE = .25
@@ -169,16 +162,21 @@ def plot_matplotlib():
 
     fig, ax = plt.subplots()
 
-    ax.axis([0, 15000, 0, 15000])
+    ax.axis([0, 15000, 0, 12000])
     ax.set_aspect(1)  # x y
     plt.grid(True)
 
     for key in couriers:
         color_marker = 0
-        new_courier = Courier(Point(*couriers[key][0][0]), couriers[key][0][1], step_size=STEP_SIZE, speed=COURIER_SPEED)
-        for xy, t in couriers[key][1:]:
-            new_courier.add_waypoint(Point(*xy), t)
-            ax.plot(*xy, c=colors[color_marker], marker="x")
+        try:
+            x, y = couriers[key][0][0], couriers[key][0][1]
+            time = couriers[key][0][2]
+        except:
+            continue
+        new_courier = Courier(Point(x, y), time, step_size=STEP_SIZE, speed=COURIER_SPEED)
+        for x, y, t in couriers[key][1:]:
+            new_courier.add_waypoint(Point(x, y), t)
+            ax.plot(x, y, c=colors[color_marker], marker="x")
             color_marker = min(color_marker + 1, len(colors) - 1)
         all_couriers.append(new_courier)
 
@@ -221,4 +219,5 @@ def plot_matplotlib():
 
 
 if __name__ == "__main__":
-    plot_matplotlib()
+    couriers = load_csv('./orders.csv')
+    plot_matplotlib(couriers)
