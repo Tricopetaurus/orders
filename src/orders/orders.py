@@ -62,7 +62,7 @@ def float_or_none(s: str) -> Optional[float]:
 def plot_matplotlib(couriers: list[Courier]):
     # Grab the first point from each of our dictionary entries
     # To use as the courier's origin point / constructor
-    colors = ["green", "deepskyblue", "lightcoral", "gold", "orangered", "violet", "hotpink", "sandybrown"]
+    colors = ["green", "deepskyblue", "lightcoral", "gold", "orangered", "violet", "hotpink", "sandybrown", "purple", "darkblue"]
     color_marker = 0
 
     fig, ax = plt.subplots()
@@ -73,13 +73,18 @@ def plot_matplotlib(couriers: list[Courier]):
 
     courier_dots = []
     for c in couriers:
+        color = colors[color_marker]
         (dot,) = ax.plot(
-            c.loc.x, c.loc.y, c="red", marker="o", ms=10
+            c.loc.x, c.loc.y, c=color, marker="o", ms=10
         )  # plot the red point
         courier_dots.append(dot)
         for wp in c.waypoints[1:]:
-            ax.plot(wp.x, wp.y, c=colors[color_marker], marker=f"${wp.name}$")
-            color_marker = (color_marker + 1) % len(colors)
+            marker = '$?$'
+            if wp.name:
+                marker = "*" if wp.name.startswith('r') else "."
+                color = "red" if wp.name.startswith('r') else colors[color_marker]
+            ax.plot(wp.x, wp.y, c=color, marker=marker)
+        color_marker = (color_marker + 1) % len(colors)
 
     all_courier_pts = [c.get_all_points() for c in couriers]
     MAX_T = len(max(all_courier_pts, key=lambda pts: len(pts)))
