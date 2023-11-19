@@ -34,4 +34,7 @@ class Point:
     def __eq__(self, other: Point) -> bool:
         return other.x == self.x and other.y == self.y
 
-
+    def angle_to(self, p: Point) -> float:
+        x, y = self.xy_distance(p)
+        angle_to_target = math.atan2(y, x)
+        return angle_to_target
