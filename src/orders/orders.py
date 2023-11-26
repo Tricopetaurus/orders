@@ -5,7 +5,7 @@ from typing import Optional
 
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
-from matplotlib.animation import FuncAnimation
+from matplotlib.animation import FuncAnimation, PillowWriter
 
 from .courier import Courier, WayPoint
 
@@ -15,7 +15,7 @@ ANNOTATE_COURIERS = True
 ANNOTATE_ORDERS_AND_RESTAURANTS = True
 
 COURIER_SPEED = 320  # Meters per Minute
-STEP_SIZE = .20
+STEP_SIZE = .40
 
 
 def load_csv(path: str) -> list[Courier]:
@@ -61,7 +61,7 @@ def float_or_none(s: str) -> Optional[float]:
         return None
 
 
-def plot_matplotlib(couriers: list[Courier]):
+def plot_matplotlib(couriers: list[Courier], filename: './output.gif'):
     # Grab the first point from each of our dictionary entries
     # To use as the courier's origin point / constructor
     # colors = ["green", "deepskyblue", "lightcoral", "gold", "gray", "violet", "hotpink", "sandybrown", "aqua", "darkblue"]
@@ -112,15 +112,19 @@ def plot_matplotlib(couriers: list[Courier]):
     MAX_T = len(max(all_courier_pts, key=lambda pts: len(pts)))
 
     def update_plot(t: int):
+        r = []
         for idx, (dot, ant) in enumerate(courier_dots):
             _t = int(min(t, len(all_courier_pts[idx]) - 1))
             new_x = all_courier_pts[idx][_t].x
             new_y = all_courier_pts[idx][_t].y
             dot.set_xdata([new_x])
             dot.set_ydata([new_y])
+            r.append(dot)
             if ANNOTATE_COURIERS:
                 ant.set_x(new_x)
                 ant.set_y(new_y)
+                r.append(ant)
+        return r
 
     def update_t(t):
         update_plot(t)
@@ -138,16 +142,18 @@ def plot_matplotlib(couriers: list[Courier]):
         st.on_changed(update_t)
         plt.show()
     else:
-        t = FuncAnimation(
+        ani = FuncAnimation(
             fig=fig,
             func=update_plot,
+            blit=True,
             frames=list(range(MAX_T)),
-            interval=max(1, 50*STEP_SIZE),
+            interval=50*STEP_SIZE,
             repeat_delay=1000,
         )
-        plt.show()
+        # plt.show()
+        ani.save(filename, dpi=300, writer=PillowWriter(fps=25))
 
 
-def main(orders_path: str):
+def main(orders_path: str, filename: str):
     couriers = load_csv(orders_path)
-    plot_matplotlib(couriers)
+    plot_matplotlib(couriers, filename)
